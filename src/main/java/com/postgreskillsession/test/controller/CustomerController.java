@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
+import javax.persistence.StoredProcedureQuery;
 import javax.transaction.Transactional;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +32,9 @@ CustomerRepository repository;
 
 @Autowired
 SessionDetailRepository sessionRepository;
+
+@PersistenceContext
+private EntityManager em;
 
 @Autowired
 JdbcTemplate jdbcTemplate;
@@ -60,12 +66,15 @@ return "Customer is created";
 
 @GetMapping("/findall")
 public List<Customer> findAll(){
-List<Customer> customers = repository.findAll();
-List<Customer> customerUI = new ArrayList<>();
-for (Customer customer : customers) {
-customerUI.add(new Customer(customer.getFirstName(),customer.getLastName()));
-}
-return customerUI;
+	StoredProcedureQuery findByYearProcedure =
+            em.createNamedStoredProcedureQuery("getAllCustomer");
+//List<Customer> customers = findByYearProcedure.getResultList();
+	repository.getAll();
+//List<Customer> customerUI = new ArrayList<>();
+//for (Customer customer : customers) {
+//customerUI.add(new Customer(customer.getFirstName(),customer.getLastName()));
+//}
+return null;
 }
 
 @RequestMapping("/search/{id}")
@@ -89,8 +98,8 @@ return customerUI;
 @PostMapping("/multipleCalls")
 public String multipleCalls(@RequestBody Customer customer, @RequestParam Integer pid) {
 	insert(customer);
-	update(customer);
-	update2(customer);
+//	update(customer);
+//	update2(customer);
 	if(pid == 1)
 	killSession();
 	return  "Added";
@@ -101,27 +110,29 @@ public List<SessionDetails> getSession() {
 	return sessionRepository.getSession();
 }
 
-public Customer insert(Customer customer) {
-	return repository.save(customer);
+public void insert(Customer customer) {
+	System.out.println("INSERTING : -> " + customer.getId() + " :: " + customer.getFirstName() + " :: " + customer.getLastName());
+	 repository.insert_customer(customer.getId(), customer.getFirstName(), customer.getLastName());
 }
 
-public Customer update(Customer customer) {
+public void update(Customer customer) {
 	customer.setLastName(customer.getLastName()+1);
-	System.out.println("Last name will be updated to " + customer.getLastName());
-	return repository.save(customer);
+	System.out.println("Last name will be updated to " + customer.getId() + " :: " +  customer.getLastName());
+    repository.update_customer(customer.getId(), customer.getFirstName(), customer.getLastName());
 }
 
-public Customer update2(Customer customer) {
+public void update2(Customer customer) {
 	customer.setFirstName(customer.getFirstName()+2);
-	System.out.println("First name will be updated to " + customer.getFirstName());
-	return repository.save(customer);
+	System.out.println("First name will be updated to " + customer.getId() + " :: " + customer.getFirstName());
+	repository.update_customer(customer.getId(), customer.getFirstName(), customer.getLastName());
 }
 
 public void killSession() {
-	jdbcTemplate.execute("select pg_terminate_backend(pid) \r\n"
-			+ "from pg_stat_activity\r\n"
-			+ "where pid = pg_backend_pid();");
-	System.out.println("Session killed");
+//	jdbcTemplate.execute("select pg_terminate_backend(pid) \r\n"
+//			+ "from pg_stat_activity\r\n"
+//			+ "where pid = pg_backend_pid();");
+	jdbcTemplate.execute("Kill " + repository.getSession());
+	System.out.println(repository.getSession());
 }
 
 }
